@@ -67,8 +67,8 @@ describe('Authentication Endpoints', () => {
 });
 
 describe('Portfolio Endpoints', () => {
-  let authToken;
-  let userId;
+  let authToken: string;
+  let userId: string;
 
   beforeEach(async () => {
     // Register and login a test user to get auth token
@@ -132,6 +132,31 @@ describe('Portfolio Endpoints', () => {
 });
 
 describe('WebSocket Events', () => {
+  let authToken: string;
+  let userId: string;
+
+  beforeEach(async () => {
+    // Register and login a test user to get auth token
+    const registerResponse = await request(app)
+      .post('/api/auth/register')
+      .send({
+        email: 'ws-tester@example.com',
+        password_hash: 'password123',
+        name: 'WS Tester'
+      });
+
+    userId = registerResponse.body.user_id;
+
+    const loginResponse = await request(app)
+      .post('/api/auth/login')
+      .send({
+        email: 'ws-tester@example.com',
+        password: 'password123'
+      });
+
+    authToken = loginResponse.body.token;
+  });
+
   // Use a mock WebSocket server library to test the WebSocket functionality
   // This could be done using libraries such as Socket.IO-client for client-side simulation
   test('Should receive an event on portfolio updates', (done) => {
@@ -141,7 +166,7 @@ describe('WebSocket Events', () => {
       client.emit('subscribe', { channel: 'portfolio/updates' });
     });
 
-    client.on('portfolio/updates', (payload) => {
+    client.on('portfolio/updates', (payload: any) => {
       expect(payload).toMatchObject({
         id: expect.any(String),
         title: expect.any(String),

@@ -1,12 +1,12 @@
-import express from 'express';
+import express, { Request, Response, NextFunction } from 'express';
 import cors from 'cors';
 import * as dotenv from 'dotenv';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
-import { Pool } from 'pg';
-import jwt from 'jsonwebtoken';
-import { Server } from 'socket.io';
+import { Pool, PoolConfig } from 'pg';
+import jwt, { JwtPayload } from 'jsonwebtoken';
+import { Server, Socket } from 'socket.io';
 import { createServer } from 'http';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
@@ -28,6 +28,30 @@ import {
 
 dotenv.config();
 
+// Type definitions
+interface UserPayload extends JwtPayload {
+  user_id: string;
+  email: string;
+}
+
+interface AuthenticatedRequest extends Request {
+  user?: {
+    user_id: string;
+    email: string;
+    name: string;
+    created_at: string;
+  };
+}
+
+interface AuthenticatedSocket extends Socket {
+  user?: {
+    user_id: string;
+    email: string;
+    name: string;
+    created_at: string;
+  };
+}
+
 // ESM workaround for __dirname
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -45,21 +69,21 @@ const {
 } = process.env;
 
 // PostgreSQL connection
-const pool = new Pool(
-  DATABASE_URL
-    ? { 
-        connectionString: DATABASE_URL, 
-        ssl: { require: true } 
-      }
-    : {
-        host: PGHOST,
-        database: PGDATABASE,
-        user: PGUSER,
-        password: PGPASSWORD,
-        port: Number(PGPORT),
-        ssl: { require: true },
-      }
-);
+const poolConfig: PoolConfig = DATABASE_URL
+  ? { 
+      connectionString: DATABASE_URL, 
+      ssl: { rejectUnauthorized: false } 
+    }
+  : {
+      host: PGHOST,
+      database: PGDATABASE,
+      user: PGUSER,
+      password: PGPASSWORD,
+      port: Number(PGPORT),
+      ssl: { rejectUnauthorized: false },
+    };
+
+const pool = new Pool(poolConfig);
 
 // Express app setup
 const app = express();
@@ -138,7 +162,7 @@ function createErrorResponse(
 }
 
 // Authentication middleware for protected routes
-const authenticateToken = async (req, res, next) => {
+const authenticateToken = async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
@@ -147,7 +171,7 @@ const authenticateToken = async (req, res, next) => {
   }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
     const result = await pool.query('SELECT user_id, email, name, created_at FROM users WHERE user_id = $1', [decoded.user_id]);
     
     if (result.rows.length === 0) {
@@ -162,14 +186,14 @@ const authenticateToken = async (req, res, next) => {
 };
 
 // WebSocket authentication middleware
-const authenticateSocket = async (socket, next) => {
+const authenticateSocket = async (socket: AuthenticatedSocket, next: (err?: Error) => void) => {
   try {
     const token = socket.handshake.auth.token;
     if (!token) {
       return next(new Error('Authentication token required'));
     }
 
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, JWT_SECRET) as UserPayload;
     const result = await pool.query('SELECT user_id, email, name, created_at FROM users WHERE user_id = $1', [decoded.user_id]);
     
     if (result.rows.length === 0) {
@@ -186,11 +210,11 @@ const authenticateSocket = async (socket, next) => {
 // WebSocket connection handling
 io.use(authenticateSocket);
 
-io.on('connection', (socket) => {
-  console.log(`User ${socket.user.email} connected via WebSocket`);
+io.on('connection', (socket: AuthenticatedSocket) => {
+  console.log(`User ${socket.user!.email} connected via WebSocket`);
 
   // Join user-specific room for notifications
-  socket.join(`user_${socket.user.user_id}`);
+  socket.join(`user_${socket.user!.user_id}`);
 
   // Handle portfolio updates for live preview
   socket.on('portfolio_update', async (data) => {
@@ -217,7 +241,7 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
-    console.log(`User ${socket.user.email} disconnected`);
+    console.log(`User ${socket.user!.email} disconnected`);
   });
 });
 
@@ -393,12 +417,12 @@ app.post('/api/auth/password-recovery', async (req, res) => {
   Get portfolios endpoint - Retrieves portfolios with search, pagination, and sorting
   Supports query parameters for filtering and ordering results
 */
-app.get('/api/portfolios', authenticateToken, async (req, res) => {
+app.get('/api/portfolios', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validatedQuery = searchPortfolioInputSchema.parse(req.query);
     
     let queryStr = 'SELECT * FROM portfolios WHERE user_id = $1';
-    const queryParams = [req.user.user_id];
+    const queryParams: any[] = [req.user!.user_id];
     let paramIndex = 2;
 
     // Add search functionality
@@ -431,12 +455,12 @@ app.get('/api/portfolios', authenticateToken, async (req, res) => {
   Create portfolio endpoint - Creates a new portfolio for the authenticated user
   Validates input data and generates unique portfolio ID
 */
-app.post('/api/portfolios', authenticateToken, async (req, res) => {
+app.post('/api/portfolios', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validatedData = createPortfolioInputSchema.parse(req.body);
     
     // Ensure user_id matches authenticated user
-    if (validatedData.user_id !== req.user.user_id) {
+    if (validatedData.user_id !== req.user!.user_id) {
       return res.status(403).json(createErrorResponse('Cannot create portfolio for another user', null, 'FORBIDDEN'));
     }
 
@@ -475,13 +499,13 @@ app.post('/api/portfolios', authenticateToken, async (req, res) => {
   Get specific portfolio endpoint - Retrieves a single portfolio by ID
   Includes authorization check to ensure user owns the portfolio
 */
-app.get('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => {
+app.get('/api/portfolios/:portfolio_id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
     
     const result = await pool.query(
       'SELECT * FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (result.rows.length === 0) {
@@ -499,7 +523,7 @@ app.get('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => 
   Update portfolio endpoint - Updates an existing portfolio
   Validates input and ensures user authorization
 */
-app.put('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => {
+app.put('/api/portfolios/:portfolio_id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
     const updates = { ...req.body, portfolio_id };
@@ -508,7 +532,7 @@ app.put('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => 
     // Check if portfolio exists and belongs to user
     const existingPortfolio = await pool.query(
       'SELECT * FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (existingPortfolio.rows.length === 0) {
@@ -516,8 +540,8 @@ app.put('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => 
     }
 
     // Build dynamic update query
-    const updateFields = [];
-    const updateValues = [];
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
     let paramIndex = 1;
 
     if (validatedData.title !== undefined) {
@@ -542,7 +566,7 @@ app.put('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => 
     updateValues.push(new Date().toISOString());
     paramIndex++;
 
-    updateValues.push(portfolio_id, req.user.user_id);
+    updateValues.push(portfolio_id, req.user!.user_id);
 
     const result = await pool.query(
       `UPDATE portfolios SET ${updateFields.join(', ')} WHERE portfolio_id = $${paramIndex} AND user_id = $${paramIndex + 1} RETURNING *`,
@@ -568,14 +592,14 @@ app.put('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => 
   Delete portfolio endpoint - Permanently removes a portfolio and all associated data
   Cascades deletion to sections, media files, and other related entities
 */
-app.delete('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) => {
+app.delete('/api/portfolios/:portfolio_id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
 
     // Check if portfolio exists and belongs to user
     const existingPortfolio = await pool.query(
       'SELECT * FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (existingPortfolio.rows.length === 0) {
@@ -606,14 +630,14 @@ app.delete('/api/portfolios/:portfolio_id', authenticateToken, async (req, res) 
   Get portfolio sections endpoint - Retrieves all sections for a specific portfolio
   Orders sections by their specified order field
 */
-app.get('/api/portfolios/:portfolio_id/sections', authenticateToken, async (req, res) => {
+app.get('/api/portfolios/:portfolio_id/sections', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
 
     // Verify portfolio ownership
     const portfolioCheck = await pool.query(
       'SELECT portfolio_id FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (portfolioCheck.rows.length === 0) {
@@ -636,7 +660,7 @@ app.get('/api/portfolios/:portfolio_id/sections', authenticateToken, async (req,
   Add portfolio section endpoint - Creates a new section within a portfolio
   Validates section data and maintains proper ordering
 */
-app.post('/api/portfolios/:portfolio_id/sections', authenticateToken, async (req, res) => {
+app.post('/api/portfolios/:portfolio_id/sections', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
     const sectionData = { ...req.body, portfolio_id };
@@ -645,7 +669,7 @@ app.post('/api/portfolios/:portfolio_id/sections', authenticateToken, async (req
     // Verify portfolio ownership
     const portfolioCheck = await pool.query(
       'SELECT portfolio_id FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (portfolioCheck.rows.length === 0) {
@@ -677,7 +701,7 @@ app.post('/api/portfolios/:portfolio_id/sections', authenticateToken, async (req
   Update portfolio section endpoint - Modifies an existing section
   Validates input and maintains data integrity
 */
-app.put('/api/portfolios/:portfolio_id/sections/:section_id', authenticateToken, async (req, res) => {
+app.put('/api/portfolios/:portfolio_id/sections/:section_id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id, section_id } = req.params;
     const updates = { ...req.body, section_id };
@@ -686,7 +710,7 @@ app.put('/api/portfolios/:portfolio_id/sections/:section_id', authenticateToken,
     // Verify portfolio and section ownership
     const sectionCheck = await pool.query(
       'SELECT s.* FROM sections s JOIN portfolios p ON s.portfolio_id = p.portfolio_id WHERE s.section_id = $1 AND s.portfolio_id = $2 AND p.user_id = $3',
-      [section_id, portfolio_id, req.user.user_id]
+      [section_id, portfolio_id, req.user!.user_id]
     );
 
     if (sectionCheck.rows.length === 0) {
@@ -694,8 +718,8 @@ app.put('/api/portfolios/:portfolio_id/sections/:section_id', authenticateToken,
     }
 
     // Build dynamic update query
-    const updateFields = [];
-    const updateValues = [];
+    const updateFields: string[] = [];
+    const updateValues: any[] = [];
     let paramIndex = 1;
 
     if (validatedData.type !== undefined) {
@@ -742,14 +766,14 @@ app.put('/api/portfolios/:portfolio_id/sections/:section_id', authenticateToken,
   Delete portfolio section endpoint - Removes a section and its associated media
   Cascades deletion to related media files
 */
-app.delete('/api/portfolios/:portfolio_id/sections/:section_id', authenticateToken, async (req, res) => {
+app.delete('/api/portfolios/:portfolio_id/sections/:section_id', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id, section_id } = req.params;
 
     // Verify portfolio and section ownership
     const sectionCheck = await pool.query(
       'SELECT s.* FROM sections s JOIN portfolios p ON s.portfolio_id = p.portfolio_id WHERE s.section_id = $1 AND s.portfolio_id = $2 AND p.user_id = $3',
-      [section_id, portfolio_id, req.user.user_id]
+      [section_id, portfolio_id, req.user!.user_id]
     );
 
     if (sectionCheck.rows.length === 0) {
@@ -778,14 +802,14 @@ app.delete('/api/portfolios/:portfolio_id/sections/:section_id', authenticateTok
   Get portfolio media endpoint - Retrieves all media files associated with a portfolio
   Joins with sections table to ensure proper ownership validation
 */
-app.get('/api/portfolios/:portfolio_id/media', authenticateToken, async (req, res) => {
+app.get('/api/portfolios/:portfolio_id/media', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
 
     // Verify portfolio ownership
     const portfolioCheck = await pool.query(
       'SELECT portfolio_id FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (portfolioCheck.rows.length === 0) {
@@ -805,7 +829,7 @@ app.get('/api/portfolios/:portfolio_id/media', authenticateToken, async (req, re
 });
 
 // File upload endpoint for media
-app.post('/api/upload', authenticateToken, upload.single('file'), async (req, res) => {
+app.post('/api/upload', authenticateToken, upload.single('file'), async (req: AuthenticatedRequest, res: Response) => {
   try {
     if (!req.file) {
       return res.status(400).json(createErrorResponse('No file uploaded', null, 'NO_FILE_UPLOADED'));
@@ -835,14 +859,14 @@ app.use('/storage', express.static(storageDir));
   Get portfolio blog posts endpoint - Retrieves all blog posts for a portfolio
   Orders by creation date with most recent first
 */
-app.get('/api/portfolios/:portfolio_id/blog-posts', authenticateToken, async (req, res) => {
+app.get('/api/portfolios/:portfolio_id/blog-posts', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
 
     // Verify portfolio ownership
     const portfolioCheck = await pool.query(
       'SELECT portfolio_id FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (portfolioCheck.rows.length === 0) {
@@ -865,7 +889,7 @@ app.get('/api/portfolios/:portfolio_id/blog-posts', authenticateToken, async (re
   Add portfolio blog post endpoint - Creates a new blog post within a portfolio
   Validates content and generates timestamps
 */
-app.post('/api/portfolios/:portfolio_id/blog-posts', authenticateToken, async (req, res) => {
+app.post('/api/portfolios/:portfolio_id/blog-posts', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
     const blogData = { ...req.body, portfolio_id };
@@ -874,7 +898,7 @@ app.post('/api/portfolios/:portfolio_id/blog-posts', authenticateToken, async (r
     // Verify portfolio ownership
     const portfolioCheck = await pool.query(
       'SELECT portfolio_id FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (portfolioCheck.rows.length === 0) {
@@ -911,12 +935,12 @@ app.post('/api/portfolios/:portfolio_id/blog-posts', authenticateToken, async (r
   Get users endpoint - Retrieves user list with search and pagination
   Admin functionality for user management
 */
-app.get('/api/users', authenticateToken, async (req, res) => {
+app.get('/api/users', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validatedQuery = searchUserInputSchema.parse(req.query);
     
     let queryStr = 'SELECT user_id, email, name, created_at FROM users';
-    const queryParams = [];
+    const queryParams: any[] = [];
     let paramIndex = 1;
 
     // Add search functionality
@@ -951,12 +975,12 @@ app.get('/api/users', authenticateToken, async (req, res) => {
   Get subscriptions endpoint - Retrieves subscription information
   Includes filtering and pagination capabilities
 */
-app.get('/api/subscriptions', authenticateToken, async (req, res) => {
+app.get('/api/subscriptions', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const validatedQuery = searchSubscriptionInputSchema.parse(req.query);
     
     let queryStr = 'SELECT * FROM subscriptions WHERE user_id = $1';
-    const queryParams = [req.user.user_id];
+    const queryParams: any[] = [req.user!.user_id];
     let paramIndex = 2;
 
     // Add search functionality
@@ -1096,7 +1120,7 @@ app.post('/api/portfolios/:portfolio_id/contact', async (req, res) => {
   Add testimonial endpoint - Creates a new testimonial for a portfolio
   Emits real-time events for testimonial additions
 */
-app.post('/api/portfolios/:portfolio_id/testimonials', authenticateToken, async (req, res) => {
+app.post('/api/portfolios/:portfolio_id/testimonials', authenticateToken, async (req: AuthenticatedRequest, res: Response) => {
   try {
     const { portfolio_id } = req.params;
     const testimonialData = { ...req.body, portfolio_id };
@@ -1105,7 +1129,7 @@ app.post('/api/portfolios/:portfolio_id/testimonials', authenticateToken, async 
     // Verify portfolio ownership
     const portfolioCheck = await pool.query(
       'SELECT portfolio_id FROM portfolios WHERE portfolio_id = $1 AND user_id = $2',
-      [portfolio_id, req.user.user_id]
+      [portfolio_id, req.user!.user_id]
     );
 
     if (portfolioCheck.rows.length === 0) {
@@ -1160,7 +1184,7 @@ app.get(/^(?!\/api).*/, (req, res) => {
 export { app, pool };
 
 // Start the server
-server.listen(PORT, '0.0.0.0', () => {
+server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`Server running on port ${PORT} and listening on 0.0.0.0`);
   console.log(`WebSocket server is ready for connections`);
 });
