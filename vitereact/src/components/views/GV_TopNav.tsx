@@ -4,16 +4,9 @@ import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useAppStore } from '@/store/main';
 
-interface Template {
-  id: string;
-  title: string;
-  description: string | null;
-}
-
 const GV_TopNav: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const isAuthenticated = useAppStore(state => state.authentication_state.authentication_status.is_authenticated);
-  const currentUser = useAppStore(state => state.authentication_state.current_user);
   
   const handleSearch = useCallback(() => {
     return axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/templates`, {
@@ -27,7 +20,9 @@ const GV_TopNav: React.FC = () => {
     });
   }, [searchQuery]);
 
-  const { data: templates, isLoading } = useQuery(['templates', searchQuery], handleSearch, {
+  const { data: templates = [], isLoading } = useQuery({
+    queryKey: ['templates', searchQuery],
+    queryFn: handleSearch,
     enabled: !!searchQuery,
     staleTime: 60000,
     refetchOnWindowFocus: false,

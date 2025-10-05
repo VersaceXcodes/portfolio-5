@@ -10,20 +10,18 @@ const UV_PasswordRecovery: React.FC = () => {
   
   const clearAuthError = useAppStore(state => state.clear_auth_error);
 
-  const passwordRecoveryMutation = useMutation(
-    async (email: string) => {
+  const passwordRecoveryMutation = useMutation({
+    mutationFn: async (email: string) => {
       await axios.post(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/auth/password-recovery`, { email });
     },
-    {
-      onSuccess: () => {
-        queryClient.invalidateQueries('passwordRecovery');
-        alert('If an account with that email exists, a password recovery email has been sent.');
-      },
-      onError: (error: any) => {
-        alert('An error occurred while trying to send a password recovery email. Please try again.');
-      }
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['passwordRecovery'] });
+      alert('If an account with that email exists, a password recovery email has been sent.');
+    },
+    onError: () => {
+      alert('An error occurred while trying to send a password recovery email. Please try again.');
     }
-  );
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

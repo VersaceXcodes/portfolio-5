@@ -43,7 +43,7 @@ const GV_Footer: React.FC = () => {
           </div>
 
           {/* Notification Section */}
-          {appNotification.message && (
+          {appNotification?.message && (
             <div aria-live="polite" className="mt-6 bg-white rounded-xl shadow-lg p-6 border border-gray-100">
               <p className={`text-sm ${appNotification.type === 'success' ? 'text-green-600' : 'text-red-600'}`}>
                 {appNotification.message}

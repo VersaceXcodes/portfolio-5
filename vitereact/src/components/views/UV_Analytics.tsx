@@ -9,10 +9,9 @@ const UV_Analytics: React.FC = () => {
   const { portfolio_id } = useParams<{ portfolio_id: string }>();
   const authToken = useAppStore((state) => state.authentication_state.auth_token);
 
-  // Fetch analytics data using react-query
-  const { data, isLoading, error } = useQuery(
-    ['analyticsData', portfolio_id],
-    async () => {
+  const { data = {}, isLoading, error } = useQuery({
+    queryKey: ['analyticsData', portfolio_id],
+    queryFn: async () => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/analytics/${portfolio_id}`,
         { 
@@ -21,13 +20,11 @@ const UV_Analytics: React.FC = () => {
       );
       return response.data;
     },
-    {
-      staleTime: 60000,
-      refetchOnWindowFocus: false,
-      retry: 1,
-      enabled: Boolean(portfolio_id && authToken),
-    }
-  );
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+    enabled: Boolean(portfolio_id && authToken),
+  });
 
   return (
     <>

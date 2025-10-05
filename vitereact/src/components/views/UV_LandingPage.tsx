@@ -1,30 +1,25 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
-import { useAppStore } from '@/store/main';
 
-// Interfaces
 interface Testimonial {
   author: string;
   content: string;
 }
 
-// Fetch testimonials with react-query
 const useFetchTestimonials = () => {
-  return useQuery<Testimonial[]>(
-    'fetchTestimonials',
-    async () => {
+  return useQuery<Testimonial[]>({
+    queryKey: ['fetchTestimonials'],
+    queryFn: async () => {
       const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/testimonials`);
       return response.data.map((testimonial: any) => ({
         author: testimonial.author_name,
         content: testimonial.content,
       }));
     },
-    {
-      staleTime: 600000 // 10 minutes
-    }
-  );
+    staleTime: 600000
+  });
 };
 
 const UV_LandingPage: React.FC = () => {

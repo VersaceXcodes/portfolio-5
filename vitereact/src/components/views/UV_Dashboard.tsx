@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useAppStore } from '@/store/main';
@@ -18,9 +18,9 @@ const UV_Dashboard: React.FC = () => {
   const currentUser = useAppStore(state => state.authentication_state.current_user);
   const logoutUser = useAppStore(state => state.logout_user);
 
-  const { data, isLoading, error } = useQuery(
-    ['fetchDashboardData'],
-    async () => {
+  const { data = [], isLoading, error } = useQuery({
+    queryKey: ['fetchDashboardData'],
+    queryFn: async () => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/user/dashboard`,
         {
@@ -39,8 +39,10 @@ const UV_Dashboard: React.FC = () => {
         updated_at: portfolio.updated_at,
       }));
     },
-    { staleTime: 60000, refetchOnWindowFocus: false, retry: 1 }
-  );
+    staleTime: 60000,
+    refetchOnWindowFocus: false,
+    retry: 1
+  });
 
   const handleLogout = () => {
     logoutUser();

@@ -22,31 +22,26 @@ const UV_AccountSettings: React.FC = () => {
     created_at: ''
   });
 
-  const fetchUserProfile = useQuery('fetchUserProfile', async () => {
-    const response = await axios.get(
-      `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/users`,
-      { headers: { Authorization: `Bearer ${authToken}` } }
-    );
-    return response.data.find((user: UserDetails) => user.user_id === currentUser?.user_id);
-  }, {
-    onSuccess: (data) => {
-      setUserDetails({
-        user_id: data.user_id,
-        email: data.email,
-        name: data.name,
-        created_at: data.created_at
-      });
+  const fetchUserProfile = useQuery({
+    queryKey: ['fetchUserProfile'],
+    queryFn: async () => {
+      const response = await axios.get(
+        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/users`,
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+      return response.data.find((user: UserDetails) => user.user_id === currentUser?.user_id);
     },
     enabled: !!authToken
   });
 
-  const updateUserSettings = useMutation(async (updatedDetails: UserDetails) => {
-    await axios.patch(
-      `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/users/${updatedDetails.user_id}`,
-      { email: updatedDetails.email, name: updatedDetails.name },
-      { headers: { Authorization: `Bearer ${authToken}` } }
-    );
-  }, {
+  const updateUserSettings = useMutation({
+    mutationFn: async (updatedDetails: UserDetails) => {
+      await axios.patch(
+        `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/users/${updatedDetails.user_id}`,
+        { email: updatedDetails.email, name: updatedDetails.name },
+        { headers: { Authorization: `Bearer ${authToken}` } }
+      );
+    },
     onSuccess: () => {
       alert('User details updated successfully!');
     }
@@ -119,9 +114,9 @@ const UV_AccountSettings: React.FC = () => {
               <button
                 type="submit"
                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                disabled={updateUserSettings.isLoading}
+                disabled={updateUserSettings.isPending}
               >
-                {updateUserSettings.isLoading ? 'Updating...' : 'Save Changes'}
+                {updateUserSettings.isPending ? 'Updating...' : 'Save Changes'}
               </button>
             </div>
             <div className="flex justify-center">

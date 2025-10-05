@@ -23,9 +23,18 @@ const UV_PortfolioBuilder: React.FC = () => {
   const authToken = useAppStore(state => state.authentication_state.auth_token);
   const currentPortfolio = useAppStore(state => state.user_portfolio);
 
-  const { isLoading, data: portfolioData, error } = useQuery(
-    ['portfolio', portfolio_id],
-    async () => {
+  const { isLoading, data: portfolioData = {
+    id: '',
+    portfolio_id: '',
+    user_id: '',
+    title: '',
+    template_id: '',
+    is_published: false,
+    created_at: '',
+    updated_at: ''
+  }, error } = useQuery({
+    queryKey: ['portfolio', portfolio_id],
+    queryFn: async () => {
       const response = await axios.get(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/portfolios/${portfolio_id}`,
         {
@@ -34,14 +43,12 @@ const UV_PortfolioBuilder: React.FC = () => {
       );
       return portfolioSchema.parse(response.data);
     },
-    {
-      enabled: !!portfolio_id, // Ensure the query doesn't execute until the portfolio_id exists
-      staleTime: 5 * 60 * 1000, // Cache time: 5 minutes
-    }
-  );
+    enabled: !!portfolio_id,
+    staleTime: 5 * 60 * 1000,
+  });
 
-  const updatePortfolioMutation = useMutation(
-    (updateData: { section_id: string; type: string; content: string }) => {
+  const updatePortfolioMutation = useMutation({
+    mutationFn: (updateData: { section_id: string; type: string; content: string }) => {
       return axios.patch(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/portfolios/${portfolio_id}/sections/${updateData.section_id}`,
         updateData,
@@ -50,17 +57,25 @@ const UV_PortfolioBuilder: React.FC = () => {
         }
       );
     }
-  );
+  });
 
-  // Fetch portfolio data when component mounts
   useEffect(() => {
-    if (portfolioData) {
-      useAppStore.setState({ user_portfolio: portfolioData });
+    if (portfolioData && portfolioData.portfolio_id) {
+      useAppStore.setState({ 
+        user_portfolio: {
+          id: portfolioData.portfolio_id,
+          title: portfolioData.title,
+          template_id: portfolioData.template_id,
+          is_published: portfolioData.is_published,
+          created_at: portfolioData.created_at,
+          updated_at: portfolioData.updated_at
+        }
+      });
     }
   }, [portfolioData]);
 
   if (isLoading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error.message}</div>;
+  if (error) return <div>Error loading portfolio</div>;
 
   return (
     <>

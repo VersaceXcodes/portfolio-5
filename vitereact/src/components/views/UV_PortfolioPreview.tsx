@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
@@ -23,10 +23,9 @@ const UV_PortfolioPreview: React.FC = () => {
   const { portfolio_id } = useParams<{ portfolio_id: string }>();
   const authToken = useAppStore(state => state.authentication_state.auth_token);
 
-  // Fetching portfolio preview data
-  const { data: portfolioPreviewData, isLoading, error } = useQuery<PortfolioData>(
-    ['portfolioPreview', portfolio_id],
-    async () => {
+  const { data: portfolioPreviewData, isLoading, error } = useQuery<PortfolioData>({
+    queryKey: ['portfolioPreview', portfolio_id],
+    queryFn: async () => {
       const response = await axios.get<PortfolioData>(
         `${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/portfolios/${portfolio_id}`,
         {
@@ -35,12 +34,10 @@ const UV_PortfolioPreview: React.FC = () => {
       );
       return response.data;
     },
-    {
-      enabled: !!portfolio_id,
-      staleTime: 1000 * 60 * 5, // 5 minutes
-      retry: 1,
-    }
-  );
+    enabled: !!portfolio_id,
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
 
   if (isLoading) {
     return (
@@ -85,7 +82,7 @@ const UV_PortfolioPreview: React.FC = () => {
             </Link>
             <button
               className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg px-6 py-3 rounded-lg font-medium"
-              onClick={/* Add your publish logic here */}
+              onClick={() => console.log('Publish clicked')}
             >
               Publish
             </button>

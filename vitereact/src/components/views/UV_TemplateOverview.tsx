@@ -1,16 +1,8 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useQuery } from '@tanstack/react-query';
 import axios from 'axios';
 import { useAppStore } from '@/store/main';
 import { Link } from 'react-router-dom';
-import { templateSchema } from '@/zodschemas'; // Replace with actual import if available
-import { z } from 'zod';
-
-interface Template {
-  template_id: string;
-  name: string;
-  description: string | null;
-}
 
 const fetchTemplates = async (authToken: string | null) => {
   const response = await axios.get(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000'}/api/templates`, {
@@ -18,12 +10,14 @@ const fetchTemplates = async (authToken: string | null) => {
       Authorization: `Bearer ${authToken}`,
     },
   });
-  return z.array(templateSchema).parse(response.data);
+  return response.data;
 };
 
 const UV_TemplateOverview: React.FC = () => {
   const authToken = useAppStore((state) => state.authentication_state.auth_token);
-  const { data: templates, isLoading, error } = useQuery('templates', () => fetchTemplates(authToken), {
+  const { data: templates = [], isLoading, error } = useQuery({
+    queryKey: ['templates'],
+    queryFn: () => fetchTemplates(authToken),
     staleTime: 60000,
     refetchOnWindowFocus: false,
     retry: 1,
@@ -45,7 +39,7 @@ const UV_TemplateOverview: React.FC = () => {
             </div>
           )}
           <div className="space-y-6">
-            {templates?.map((template) => (
+            {templates?.map((template: any) => (
               <div key={template.template_id} className="bg-white shadow-lg rounded-xl px-6 py-4 border border-gray-100">
                 <h2 className="text-xl font-semibold text-gray-900">{template.name}</h2>
                 <p className="text-gray-600 mb-4">{template.description}</p>
