@@ -1,0 +1,19 @@
+{
+  "timestamp": 1759701689491,
+  "operation": {
+    "id": "webapp:react:views",
+    "refs": {
+      "id": "UV_SignUp",
+      "version": "1759701626663"
+    }
+  },
+  "projectId": "portfolio-5",
+  "files": [
+    {
+      "path": "/mnt/data/portfolio-5/vitereact/src/components/views/UV_SignUp.tsx",
+      "type": "text",
+      "size": 6878,
+      "dependencies": false
+    }
+  ]
+}

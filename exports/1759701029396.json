@@ -1,0 +1,15 @@
+{
+  "timestamp": 1759701029396,
+  "operation": {
+    "id": "db:postgres"
+  },
+  "projectId": "portfolio-5",
+  "files": [
+    {
+      "path": "/mnt/data/portfolio-5/backend/db.sql",
+      "type": "text",
+      "size": 5739,
+      "dependencies": false
+    }
+  ]
+}

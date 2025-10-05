@@ -1,0 +1,611 @@
+>-
+openapi: 3.0.0
+
+info:
+  title: ShowcaseCraft API
+  description: An API for managing and showcasing user portfolios via ShowcaseCraft.
+  version: 1.0.0
+servers:
+  - url: "http://localhost:3000/api"
+
+paths:
+  /auth/register:
+    post:
+      summary: Register a new user
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserInput'
+      responses:
+        '201':
+          description: User successfully registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+
+  /auth/login:
+    post:
+      summary: Log in an existing user
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                  format: email
+                password:
+                  type: string
+            required:
+              - email
+              - password
+      responses:
+        '200':
+          description: Successful login
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: '#/components/schemas/User'
+
+  /auth/password-recovery:
+    post:
+      summary: Request password recovery
+      operationId: recoverPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              properties:
+                email:
+                  type: string
+                  format: email
+            required:
+              - email
+      responses:
+        '200':
+          description: Password recovery email sent
+
+  /portfolios:
+    get:
+      summary: Retrieve a list of portfolios
+      operationId: getPortfolios
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: created_at
+            enum: [title, created_at]
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            default: desc
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: A list of portfolios
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Portfolio'
+
+  /portfolios:
+    post:
+      summary: Create a new portfolio
+      operationId: createPortfolio
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePortfolioInput'
+      responses:
+        '201':
+          description: Portfolio successfully created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+
+  /portfolios/{portfolio_id}:
+    get:
+      summary: Retrieve a specific portfolio
+      operationId: getPortfolio
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Portfolio details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+
+    put:
+      summary: Update a specific portfolio
+      operationId: updatePortfolio
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdatePortfolioInput'
+      responses:
+        '200':
+          description: Portfolio successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Portfolio'
+
+    delete:
+      summary: Delete a specific portfolio
+      operationId: deletePortfolio
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Portfolio successfully deleted
+
+  /portfolios/{portfolio_id}/sections:
+    get:
+      summary: Retrieve sections of a portfolio
+      operationId: getPortfolioSections
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of sections in the portfolio
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Section'
+
+    post:
+      summary: Add a section to a portfolio
+      operationId: addPortfolioSection
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateSectionInput'
+      responses:
+        '201':
+          description: Section successfully added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Section'
+
+  /portfolios/{portfolio_id}/sections/{section_id}:
+    put:
+      summary: Update a specific section in a portfolio
+      operationId: updatePortfolioSection
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: section_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSectionInput'
+      responses:
+        '200':
+          description: Section successfully updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Section'
+
+    delete:
+      summary: Remove a section from a portfolio
+      operationId: deletePortfolioSection
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: section_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '204':
+          description: Section successfully removed
+
+  /portfolios/{portfolio_id}/media:
+    get:
+      summary: Retrieve media files in a portfolio
+      operationId: getPortfolioMedia
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of media files in the portfolio
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/MediaFile'
+
+  /portfolios/{portfolio_id}/blog-posts:
+    get:
+      summary: Retrieve blog posts for a portfolio
+      operationId: getPortfolioBlogPosts
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: A list of blog posts for the portfolio
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/BlogPost'
+
+    post:
+      summary: Add a blog post to a portfolio
+      operationId: addPortfolioBlogPost
+      parameters:
+        - name: portfolio_id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateBlogPostInput'
+      responses:
+        '201':
+          description: Blog post successfully added
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BlogPost'
+
+  /users:
+    get:
+      summary: Retrieve a list of users
+      operationId: getUsers
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: created_at
+            enum: [email, created_at]
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            default: desc
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: A list of users
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+
+  /subscriptions:
+    get:
+      summary: Retrieve a list of subscriptions
+      operationId: getSubscriptions
+      parameters:
+        - name: query
+          in: query
+          schema:
+            type: string
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 10
+        - name: offset
+          in: query
+          schema:
+            type: integer
+            default: 0
+        - name: sort_by
+          in: query
+          schema:
+            type: string
+            default: started_at
+            enum: [started_at, tier]
+        - name: sort_order
+          in: query
+          schema:
+            type: string
+            default: desc
+            enum: [asc, desc]
+      responses:
+        '200':
+          description: A list of subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Subscription'
+
+components:
+  schemas:
+    User:
+      type: object
+      properties:
+        user_id:
+          type: string
+        email:
+          type: string
+          format: email
+        password_hash:
+          type: string
+        name:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    CreateUserInput:
+      type: object
+      required:
+        - email
+        - password_hash
+        - name
+      properties:
+        email:
+          type: string
+          format: email
+        password_hash:
+          type: string
+        name:
+          type: string
+
+    Portfolio:
+      type: object
+      properties:
+        portfolio_id:
+          type: string
+        user_id:
+          type: string
+        title:
+          type: string
+        template_id:
+          type: string
+        is_published:
+          type: boolean
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreatePortfolioInput:
+      type: object
+      required:
+        - user_id
+        - title
+        - template_id
+        - is_published
+      properties:
+        user_id:
+          type: string
+        title:
+          type: string
+        template_id:
+          type: string
+        is_published:
+          type: boolean
+
+    UpdatePortfolioInput:
+      type: object
+      properties:
+        title:
+          type: string
+        template_id:
+          type: string
+        is_published:
+          type: boolean
+      required:
+        - portfolio_id
+
+    Section:
+      type: object
+      properties:
+        section_id:
+          type: string
+        portfolio_id:
+          type: string
+        type:
+          type: string
+        content:
+          type: string
+        order:
+          type: integer
+
+    CreateSectionInput:
+      type: object
+      required:
+        - portfolio_id
+        - type
+        - order
+      properties:
+        portfolio_id:
+          type: string
+        type:
+          type: string
+        content:
+          type: string
+        order:
+          type: integer
+
+    UpdateSectionInput:
+      type: object
+      properties:
+        type:
+          type: string
+        content:
+          type: string
+        order:
+          type: integer
+      required:
+        - section_id
+
+    MediaFile:
+      type: object
+      properties:
+        media_id:
+          type: string
+        section_id:
+          type: string
+        file_url:
+          type: string
+          format: uri
+        media_type:
+          type: string
+
+    BlogPost:
+      type: object
+      properties:
+        post_id:
+          type: string
+        portfolio_id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    CreateBlogPostInput:
+      type: object
+      required:
+        - portfolio_id
+        - title
+        - content
+      properties:
+        portfolio_id:
+          type: string
+        title:
+          type: string
+        content:
+          type: string
+
+    Subscription:
+      type: object
+      properties:
+        subscription_id:
+          type: string
+        user_id:
+          type: string
+        tier:
+          type: string
+        started_at:
+          type: string
+          format: date-time
+        ends_at:
+          type: string
+          format: date-time

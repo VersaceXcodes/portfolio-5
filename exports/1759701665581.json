@@ -1,0 +1,19 @@
+{
+  "timestamp": 1759701665581,
+  "operation": {
+    "id": "webapp:react:views",
+    "refs": {
+      "id": "UV_AccountSettings",
+      "version": "latest"
+    }
+  },
+  "projectId": "portfolio-5",
+  "files": [
+    {
+      "path": "/mnt/data/portfolio-5/vitereact/src/components/views/UV_AccountSettings.tsx",
+      "type": "text",
+      "size": 4911,
+      "dependencies": false
+    }
+  ]
+}

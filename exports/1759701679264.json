@@ -1,0 +1,19 @@
+{
+  "timestamp": 1759701679264,
+  "operation": {
+    "id": "webapp:react:views",
+    "refs": {
+      "id": "UV_Login",
+      "version": "latest"
+    }
+  },
+  "projectId": "portfolio-5",
+  "files": [
+    {
+      "path": "/mnt/data/portfolio-5/vitereact/src/components/views/UV_Login.tsx",
+      "type": "text",
+      "size": 4740,
+      "dependencies": false
+    }
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "timestamp": 1759701365313,
+  "operation": {
+    "id": "backend:specifications:openapi"
+  },
+  "projectId": "portfolio-5",
+  "files": [
+    {
+      "path": "/mnt/data/portfolio-5/backend/openapi.yaml",
+      "type": "text",
+      "size": 14272,
+      "dependencies": false
+    }
+  ]
+}

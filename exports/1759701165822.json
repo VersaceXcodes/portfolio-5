@@ -1,0 +1,15 @@
+{
+  "timestamp": 1759701165822,
+  "operation": {
+    "id": "db:schemas:zod"
+  },
+  "projectId": "portfolio-5",
+  "files": [
+    {
+      "path": "/mnt/data/portfolio-5/backend/schema.ts",
+      "type": "text",
+      "size": 14952,
+      "dependencies": false
+    }
+  ]
+}

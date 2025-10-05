@@ -1,0 +1,19 @@
+{
+  "timestamp": 1759701683055,
+  "operation": {
+    "id": "webapp:react:views",
+    "refs": {
+      "id": "UV_PasswordRecovery",
+      "version": "1759701666387"
+    }
+  },
+  "projectId": "portfolio-5",
+  "files": [
+    {
+      "path": "/mnt/data/portfolio-5/vitereact/src/components/views/UV_PasswordRecovery.tsx",
+      "type": "text",
+      "size": 3237,
+      "dependencies": false
+    }
+  ]
+}
